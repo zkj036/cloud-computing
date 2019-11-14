@@ -684,3 +684,27 @@ vi wp-config.php
 成功进入WordPress：
 
 ![](./image/105.png)
+
+进一步细化到推送至Docker Hub的镜像，并查看镜像：
+
+docker tag 67fa590cfc1c zkj035/centos:7
+
+docker images
+
+![](./image/106.png)
+
+首先要到[Docker Hub](https://hub.docker.com/)上进行注册，然后这里我们使用shell登录：
+
+docker login -u docker-hub-username
+
+输入密码。用户名和密码都正确，随后会显示登录成功。
+
+![](./image/107.png)
+
+使用如下命令推送新创建的镜像：
+
+![](./image/108.png)
+
+进入docker hub查看镜像
+
+![](./image/105.png![](./image/109.png)
