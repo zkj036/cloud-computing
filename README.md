@@ -1,3 +1,5 @@
+
+
 ## 实验一
 
 ![](./image/1.png)
@@ -707,4 +709,44 @@ docker login -u docker-hub-username
 
 进入docker hub查看镜像
 
-![](./image/105.png![](./image/109.png)
+![](./image/109.png)
+
+Dockerfile实验：
+
+（参考何浪同学的dockerfile思路）
+
+编写dockerfile文件：
+
+![](./image/110.png)
+
+编写install.sh文件：
+
+![](./image/111.png)
+
+编写setup.sql文件：
+
+![](./image/112.png)
+
+编写start.sh文件：
+
+![](./image/113.png)
+
+执行dockerfile文件(一定要注意结尾是空格加一个  .  ）
+
+docker build -t dockerfile .
+
+![](./image/114.png)
+
+启动容器:docker run -dit dockerfile
+
+![](./image/115.png)
+
+打开浏览器验证wordpress:
+
+106.54.30.215:9998
+
+![](./image/116.png)
+
+填写个人信息后成功进入wordpress界面：
+
+![](./image/118.png)
