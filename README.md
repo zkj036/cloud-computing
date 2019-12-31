@@ -750,3 +750,305 @@ docker build -t dockerfile .
 填写个人信息后成功进入wordpress界面：
 
 ![](./image/118.png)
+
+
+
+实验六：ceph
+
+在虚拟机安装centos（最小化安装）
+
+进入界面，里头无法使用复制粘贴所以需要用shell连接方便操作：
+
+输入ip addr  查看ip
+
+![](./image/120.png)
+
+获取ip后连接shell
+
+![](./image/119.png)
+
+打开shell
+
+在所有节点上创建一个名为“ **cephuser** ” 的新用户。
+
+```
+useradd -d /home/cephuser -m cephuser
+passwd cephuser
+```
+
+![](./image/121.png)
+
+创建新用户后，我们需要为“ cephuser”配置sudo。他必须能够以root用户身份运行命令，并且无需密码即可获得root用户特权。
+
+运行以下命令为用户创建一个sudoers文件，并使用sed编辑/ etc / sudoers文件。
+
+```
+echo "cephuser ALL = (root) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/cephuser
+chmod 0440 /etc/sudoers.d/cephuser
+sed -i s'/Defaults requiretty/#Defaults requiretty'/g /etc/sudoers
+```
+
+![](./image/122.png)
+
+安装NTP以同步所有节点上的日期和时间。运行ntpdate命令通过NTP协议设置日期和时间，我们将使用us pool NTP服务器。然后启动并启用NTP服务器在引导时运行。
+
+```
+yum install -y ntp ntpdate ntp-doc
+ntpdate 0.us.pool.ntp.org
+hwclock --systohc
+systemctl enable ntpd.service
+systemctl start ntpd.service
+```
+
+![](./image/123.png)
+
+![](./image/124.png)
+
+![](./image/125.png)
+
+### 安装Open-vm-tools
+
+```
+yum install -y open-vm-tools
+```
+
+![](./image/126.png)
+
+![](./image/127.png)
+
+### 禁用SELinux
+
+通过使用sed流编辑器编辑SELinux配置文件，在所有节点上禁用SELinux。
+
+```
+sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config
+```
+
+![](./image/128.png)
+
+### 配置主机文件
+
+使用vim编辑器在所有节点上编辑/ etc / hosts文件，并添加带有所有集群节点的IP地址和主机名的行。
+
+```
+vim /etc/hosts
+```
+
+![](./image/131.png)
+
+保存文件并退出vim。
+
+现在，您可以尝试使用主机名在服务器之间ping通，以测试网络连接。例：
+
+```
+ping -c 4 mon1
+```
+
+![](./image/132.png)
+
+## 第2步-配置SSH服务器
+
+在此步骤中，我将配置**ceph-admin节点**。admin节点用于配置监视节点和osd节点。登录到**ceph** -admin节点并成为“ **cephuser** ”。
+
+```
+ssh root@ceph-admin
+然后切换用户
+su - cephuser
+```
+
+
+
+admin节点用于安装和配置所有群集节点，因此ceph-admin节点上的用户必须具有无需密码即可连接到所有节点的特权。我们必须在“ ceph-admin”节点上为“ cephuser”配置无密码的SSH访问。
+
+为“ **cephuser** ” 生成ssh密钥。
+
+```
+ssh-keygen
+```
+
+将密码短语留空/空白。
+
+![](./image/133.png)
+
+接下来，为ssh配置创建配置文件。
+
+```
+vim ~/.ssh/config
+```
+
+粘贴以下配置：
+
+```
+Host ceph-admin        
+Hostname ceph-admin        
+User cephuser Host mon1        
+Hostname mon1        
+User cephuser Host osd1        
+Hostname osd1        
+User cephuser Host osd2        
+Hostname osd2        
+User cephuser
+```
+
+![](./image/134.png)
+
+更改配置文件的权限。
+
+```
+chmod 644 ~/.ssh/config
+```
+
+![](./image/136.png)
+
+现在，使用ssh-copy-id命令将SSH密钥添加到所有节点。
+
+```
+ssh-keyscan osd1 osd2 mon1 >> ~/.ssh/known_hosts
+ssh-copy-id osd1
+ssh-copy-id osd2
+ssh-copy-id mon1
+```
+
+![](./image/137.png)
+
+![](./image/138.png)
+
+完成后，请尝试从ceph-admin节点访问osd1服务器。
+
+```
+ssh osd1
+ssh osd2
+ssh mon1
+```
+
+![](./image/145.png)
+
+由于本地操作，就没有做防火墙相关操作
+
+## 构建Ceph集群
+
+在这一步中，我们将在ceph-admin节点的所有节点上安装Ceph。
+
+登录到ceph-admin节点。
+
+```
+ssh root@ceph-adminsu - cephuser
+```
+
+ 
+
+### 在ceph-admin节点上安装ceph-deploy
+
+添加Ceph存储库，并使用yum命令安装Ceph部署工具' **ceph-deploy** '。
+
+```
+sudo rpm -Uhv http://download.ceph.com/rpm-jewel/el7/noarch/ceph-release-1-1.el7.noarch.rpm
+sudo yum update -y && sudo yum install ceph-deploy -y
+```
+
+![](./image/140.png)
+
+在osd1 osd2 mon1上重复上面步骤
+
+安装ceph-deploy工具后，为ceph集群配置创建一个新目录。
+
+
+
+```
+mkdir cluster
+cd cluster/
+```
+
+![](./image/141.png)
+
+接下来，使用“ **ceph** **-deploy** ”命令创建一个新的集群配置，将监视节点定义为“ **mon1** ”。
+
+```
+ceph-deploy new mon1
+```
+
+
+
+```
+mkdir cluster
+cd cluster/
+```
+
+![](./image/142.png)
+
+该命令将在集群目录中生成Ceph集群配置文件'ceph.conf'。
+
+用vim编辑ceph.conf文件。
+
+```
+vim ceph.conf
+```
+
+在[global]块下，在下面粘贴配置。
+
+```
+# Your network addresspublic network = 192.168.40.0/24（因人而异，具体看自己的ip）
+osd pool default size = 2
+```
+
+![](./image/143.png)
+
+现在，从ceph-admin节点在所有其他节点上安装Ceph。这可以通过单个命令完成。
+
+```
+ceph-deploy install ceph-admin mon1 osd1 osd2
+```
+
+![](./image/146.png)
+
+![](./image/147.png)
+
+该命令将在所有节点上自动安装Ceph：mon1，osd1-2和ceph-admin-安装将花费一些时间。
+
+现在将ceph-mon部署在mon1节点上。
+
+```
+ceph-deploy mon create-initial
+```
+
+该命令将创建监视键，并使用“ ceph”命令检查并获取键。
+
+```
+ceph-deploy gatherkeys mon1
+```
+
+![](./image/149.png)
+
+将OSDS添加到集群
+
+```
+ceph-deploy osd prepare osd1:/var/local/osd1 osd2:/var/local/osd2
+
+ceph-deploy osd activate osd1:/var/local/osd1 osd2:/var/local/osd2
+```
+
+![](./image/150.png)
+
+将管理密钥部署到所有关联的节点
+
+将OSDS添加到集群
+
+所有节点执行命令更改密钥文件的权限
+
+```
+ceph-deploy admin ceph-admin mon1 osd1 osd2
+
+*sudo chmod 644 /etc/ceph/ceph.client.admin.keyring*
+
+*ceph-deploy disk list osd1 osd2*
+```
+
+![](./image/151.png)
+
+登录mon1管理节点，查看health状态
+
+![](./image/152.png)
+
+检查集群状态
+
+![](./image/153.png)
